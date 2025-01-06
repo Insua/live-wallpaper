@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gogf/gf/v2/os/gcmd"
+	"github.com/gogf/gf/v2/crypto/gmd5"
 	"github.com/gogf/gf/v2/os/gcron"
 	"github.com/gogf/gf/v2/os/gfile"
-	"github.com/gogf/gf/v2/util/gconv"
 	"github.com/gogf/gf/v2/util/grand"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -19,19 +20,36 @@ var (
 )
 
 func main() {
-	_, _ = gcron.AddSingleton(context.Background(), "0 0 * * * *", func(ctx context.Context) {
-		randGif()
+	_, _ = gcron.AddSingleton(context.Background(), "# */30 * * * *", func(ctx context.Context) {
+		fmt.Println(time.Now())
+		randGif(false)
 	})
-	randGif()
+	randGif(true)
 	select {}
 }
 
-func randGif() {
-	fp := gcmd.GetArg(1)
-	dirs, _ := gfile.ScanDir(gconv.String(fp), "*")
-	rand := grand.N(0, len(dirs)-1)
-	dir := dirs[rand]
-	animate(dir)
+func randGif(isFirst bool) {
+	tmpPath := "/tmp/live-wallpaper"
+	ex, _ := os.Executable()
+	exPath := filepath.Dir(ex)
+	videos, _ := gfile.ScanDir(filepath.Join(exPath, "mp4"), "*.mp4")
+	rand := grand.N(0, len(videos)-1)
+	video := videos[rand]
+	videoMd5 := gmd5.MustEncryptFile(video)
+	tmpFilePath := filepath.Join(tmpPath, videoMd5)
+	if !gfile.Exists(tmpFilePath) {
+		_ = gfile.Mkdir(tmpFilePath)
+	}
+	pngs, _ := gfile.ScanDirFile(tmpFilePath, "*.png")
+	if len(pngs) == 0 {
+		if isFirst {
+			animate(filepath.Join(exPath, "loading"))
+		}
+		convert(video, tmpFilePath)
+		animate(tmpFilePath)
+	} else {
+		animate(tmpFilePath)
+	}
 }
 
 func animate(dp string) {
@@ -72,4 +90,10 @@ func runFeh(fp string) {
 	if err != nil {
 		fmt.Printf("Error running feh: %v\n", err)
 	}
+}
+
+func convert(mp4Path, outPath string) {
+	ffOut := outPath + "/%04d.png"
+	cmd := exec.Command("ffmpeg", "-i", mp4Path, "-vf", "fps=10", "-s", "2560x1440", ffOut)
+	_, _ = cmd.CombinedOutput()
 }
