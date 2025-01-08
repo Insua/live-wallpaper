@@ -21,6 +21,7 @@ var (
 
 func main() {
 	_, _ = gcron.AddSingleton(context.Background(), "# */30 * * * *", func(ctx context.Context) {
+		clearTmpFile()
 		randGif(false)
 	})
 	randGif(true)
@@ -95,4 +96,19 @@ func convert(mp4Path, outPath string) {
 	ffOut := outPath + "/%04d.png"
 	cmd := exec.Command("ffmpeg", "-i", mp4Path, "-vf", "fps=10", "-s", "2560x1440", ffOut)
 	_, _ = cmd.CombinedOutput()
+}
+
+func clearTmpFile() {
+	tmpPath := "/tmp/live-wallpaper"
+	if gfile.Exists(tmpPath) {
+		ds, _ := gfile.ScanDir(tmpPath, "*")
+		for _, v := range ds {
+			if gfile.IsDir(v) {
+				info, _ := gfile.Stat(v)
+				if info.ModTime().Add(time.Hour * 6).Before(time.Now()) {
+					_ = gfile.RemoveAll(v)
+				}
+			}
+		}
+	}
 }
