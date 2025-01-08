@@ -21,7 +21,6 @@ var (
 
 func main() {
 	_, _ = gcron.AddSingleton(context.Background(), "# */30 * * * *", func(ctx context.Context) {
-		fmt.Println(time.Now())
 		randGif(false)
 	})
 	randGif(true)
