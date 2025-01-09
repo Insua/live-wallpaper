@@ -94,7 +94,7 @@ func runFeh(fp string) {
 
 func convert(mp4Path, outPath string) {
 	ffOut := outPath + "/%04d.png"
-	cmd := exec.Command("ffmpeg", "-i", mp4Path, "-vf", "fps=10", "-s", "2560x1440", ffOut)
+	cmd := exec.Command("ffmpeg", "-i", mp4Path, "-vf", "fps=10", "-s", "2560x1440", "-threads", "1", ffOut)
 	_, _ = cmd.CombinedOutput()
 }
 
