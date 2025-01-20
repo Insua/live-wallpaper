@@ -7,10 +7,13 @@ import (
 	"github.com/gogf/gf/v2/os/gcron"
 	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/gogf/gf/v2/util/grand"
+	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -20,12 +23,47 @@ var (
 )
 
 func main() {
+	addr := "/tmp/live-wallpaper/message.sock"
+
+	if len(os.Args) > 1 {
+		sendMessage(addr)
+		return
+	}
+
+	if _, err := os.Stat(addr); err == nil {
+		err = os.Remove(addr)
+		if err != nil {
+			panic(fmt.Sprintf("无法删除遗留的 socket 文件: %s, 错误: %v", addr, err))
+		}
+	}
+
+	ln, err := net.Listen("unix", addr)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = ln.Close()
+	}()
+
+	go func() {
+		for {
+			_, err = ln.Accept()
+			if err != nil {
+				fmt.Println("连接错误:", err)
+				continue
+			}
+			go randGif(false)
+		}
+	}()
+
 	_, _ = gcron.AddSingleton(context.Background(), "# */30 * * * *", func(ctx context.Context) {
 		clearTmpFile()
 		randGif(false)
 	})
 	randGif(true)
-	select {}
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	<-sig
 }
 
 func randGif(isFirst bool) {
@@ -110,5 +148,20 @@ func clearTmpFile() {
 				}
 			}
 		}
+	}
+}
+
+func sendMessage(addr string) {
+	conn, err := net.Dial("unix", addr)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	_, err = conn.Write([]byte("trigger"))
+	if err != nil {
+		panic(err)
 	}
 }
