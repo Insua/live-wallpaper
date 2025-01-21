@@ -23,6 +23,10 @@ var (
 )
 
 func main() {
+	tmpPath := "/tmp/live-wallpaper"
+	if !gfile.Exists(tmpPath) {
+		_ = gfile.Mkdir(tmpPath)
+	}
 	addr := "/tmp/live-wallpaper/message.sock"
 
 	if len(os.Args) > 1 {
